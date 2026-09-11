@@ -1,0 +1,9 @@
+job_market_pipeline/logs/
+job_market_pipeline/target/
+job_market_pipeline/dbt_packages/
+job_market_pipeline/models/example/
+data/raw/
+__pycache__/
+.pytest_cache/
+*.pyc
+.env
