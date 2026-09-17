@@ -46,6 +46,16 @@ EXPECTED_COLUMNS = {"NOC21 Code", "City"}
 
 _MONTH_PATTERN = re.compile(r"(20\d{2})[-_]?(\d{2})")
 
+_MONTH_NAME_PATTERN = re.compile(
+    r"(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[-_]?(\d{4})",
+    re.IGNORECASE,
+)
+
+_MONTH_NAME_TO_NUM = {
+    "jan": "01", "feb": "02", "mar": "03", "apr": "04", "may": "05", "jun": "06",
+    "jul": "07", "aug": "08", "sep": "09", "sept": "09", "oct": "10", "nov": "11", "dec": "12",
+}
+
 
 def discover_monthly_resources(language=None, limit=None):
     """
@@ -73,26 +83,31 @@ def discover_monthly_resources(language=None, limit=None):
 
 def infer_month_label(resource, fallback_index):
     """
-    Best-effort extraction of a YYYY-MM label from a CKAN resource's
-    metadata. Tries the resource name, then the URL, then last_modified /
-    created dates, then falls back to a positional label (nothing is ever
-    silently dropped just for lacking a clean label, but unclear cases are
-    logged so it is possible to notice them.)
+    Extract a YYYY-MM label identifying which month's postings a CKAN
+    resource contains, from its name/URL metadata.
+
+    Two patterns are tried, in order, against both the resource's `name`
+    and `url` fields:
+      1. Numeric year-month, e.g. "2024-03", "202403"      -> _MONTH_PATTERN
+      2. Month-name + year, e.g. "aug2026", "aug_2026"      -> _MONTH_NAME_PATTERN
+         (this is the format Job Bank's actual filenames use, discovered
     """
+        
     for field in ("name", "url"):
         value = resource.get(field) or ""
+
         match = _MONTH_PATTERN.search(value)
         if match:
             return f"{match.group(1)}-{match.group(2)}"
 
-    for field in ("last_modified", "created"):
-        value = resource.get(field) or ""
-        match = _MONTH_PATTERN.search(value)
+        match = _MONTH_NAME_PATTERN.search(value)
         if match:
-            return f"{match.group(1)}-{match.group(2)}"
+            month_num = _MONTH_NAME_TO_NUM[match.group(1).lower()[:3]]
+            return f"{match.group(2)}-{month_num}"
 
     logger.warning(
-        "Could not infer a month label for resource id=%s name=%r -- using a positional fallback.",
+        "Could not infer a month label for resource id=%s name=%r -- using a positional fallback "
+        "instead of an unreliable timestamp. This file needs manual review.",
         resource.get("id"),
         resource.get("name"),
     )
