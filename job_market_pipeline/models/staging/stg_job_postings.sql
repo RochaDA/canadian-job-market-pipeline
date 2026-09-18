@@ -1,0 +1,81 @@
+with source as (
+
+    select * from {{ source('raw', 'job_postings') }}
+
+),
+
+renamed as (
+
+    select
+        cast(`WIC Job Location Snapshot ID` as bigint)                     as job_posting_id,
+        trim(`Job Title`)                                                    as job_title,
+        trim(`Original Job Title`)                                           as original_job_title,
+        lpad(regexp_replace(`NOC 2016 Code`, '\\.0$', ''), 4, '0')           as noc_2016_code,
+        trim(`NOC 2016 Code Name`)                                           as noc_2016_code_name,
+        lpad(regexp_replace(`NOC21 Code`, '\\.0$', ''), 5, '0')              as noc21_code,
+        trim(`NOC21 Code Name`)                                              as noc21_code_name,
+        cast(`External Indicator` as bigint)                                as external_indicator,
+        to_date(`First Posting Date`, 'yyyy/MM/dd')                                   as posting_date,
+        cast(`Vacancy Count` as bigint)                                      as vacancy_count,
+        trim(`Official Language`)                                            as official_language,
+        trim(`Education LOS`)                                                as education_los,
+        trim(`Experience Level`)                                             as experience_level,
+        trim(`Government Type`)                                              as government_type,
+        trim(`Placement Agency`)                                             as placement_agency,
+        trim(`NAICS`)                                                        as naics,
+        trim(`Province/Territory`)                                          as province_territory,
+        trim(`City`)                                                        as city,
+        trim(`Work Location Postal Code`)                                   as work_location_postal_code,
+        trim(`Economic Region`)                                             as economic_region,
+        trim(`Various Location`)                                            as various_location,
+        trim(`Employment Type`)                                             as employment_type,
+        trim(`Employment Term`)                                             as employment_term,
+        to_date(`Employment Term Start Date`, 'yyyy/MM/dd')                          as employment_term_start_date,
+        to_date(`Employment Term End Date`, 'yyyy/MM/dd')                            as employment_term_end_date,
+        trim(`Employment Term Oncall`)                                      as employment_term_oncall,
+        trim(`Employment Term Overtime`)                                    as employment_term_overtime,
+        trim(`Employment Term Day`)                                         as employment_term_day,
+        trim(`Employment Term Evening`)                                     as employment_term_evening,
+        trim(`Employment Term Shift`)                                       as employment_term_shift,
+        trim(`Employment Term Weekend`)                                     as employment_term_weekend,
+        trim(`Employment Term Night`)                                       as employment_term_night,
+        trim(`Employment Term Telework`)                                    as employment_term_telework,
+        trim(`Employment Term Early`)                                       as employment_term_early,
+        trim(`Employment Term Flex`)                                        as employment_term_flex,
+        trim(`Employment Term Morning`)                                     as employment_term_morning,
+        trim(`Employment Term TBD`)                                        as employment_term_tbd,
+        trim(`Salary Condition Detail`)                                     as salary_condition_detail,
+        trim(`Salary Per`)                                                  as salary_period,
+        cast(`Salary Minimum` as double)                                   as salary_min,
+        cast(`Salary Maximum` as double)                                   as salary_max,
+        trim(`Salary Condition Collective`)                                 as salary_condition_collective,
+        trim(`Salary Condition Bonus`)                                      as salary_condition_bonus,
+        trim(`Salary Condition Disability`)                                 as salary_condition_disability,
+        trim(`Salary Condition Gratuity`)                                   as salary_condition_gratuity,
+        trim(`Salary Condition Medical`)                                    as salary_condition_medical,
+        trim(`Salary Condition Mileage`)                                    as salary_condition_mileage,
+        trim(`Salary Condition Piecework`)                                  as salary_condition_piecework,
+        trim(`Salary Condition Commission`)                                 as salary_condition_commission,
+        trim(`Salary Condition RESP`)                                       as salary_condition_resp,
+        trim(`Salary Condition Dental`)                                     as salary_condition_dental,
+        trim(`Salary Condition Group Insurance`)                            as salary_condition_group_insurance,
+        trim(`Salary Condition Life Insurance`)                             as salary_condition_life_insurance,
+        trim(`Salary Condition Pension`)                                    as salary_condition_pension,
+        trim(`Salary Condition RRSP`)                                       as salary_condition_rrsp,
+        trim(`Condition Vision Care`)                                       as salary_condition_vision_care,
+        trim(`Salary Condition Other Benefits`)                             as salary_condition_other_benefits,
+        trim(`Commission PER`)                                              as commission_per,
+        trim(`Commission Type`)                                             as commission_type,
+        trim(`Hours Per`)                                                   as hours_per,
+        cast(`Hours Minimum` as double)                                    as hours_min,
+        cast(`Hours Maximum` as double)                                    as hours_max,
+        trim(`Work Hours`)                                                  as work_hours,
+        `Work Hours From Time`                                              as work_hours_from_time,
+        `Work Hours To Time`                                                as work_hours_to_time,
+        _rescued_data
+
+    from source
+
+)
+
+select * from renamed

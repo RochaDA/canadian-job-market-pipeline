@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "Bonze layer: raw Job Bank postings, appended monthly"
+    schema: bronze
+    tables:
+      - name: job_postings
+        description: "Raw job postings loaded from monthly Job Bank open-data CSV exports, all columns as STRING"

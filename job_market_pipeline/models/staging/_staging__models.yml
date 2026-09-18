@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: stg_job_postings
+    columns:
+      - name: job_posting_id
+        tests:
+          - unique
+          - not_null
+
+    tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "length(noc_2016_code) = 4"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "length(noc21_code) = 5"
