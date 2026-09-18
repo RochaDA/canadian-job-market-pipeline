@@ -95,8 +95,12 @@ Job Bank postings (36 monthly CSV exports, via CKAN open-data API)
 - [x] Ingestion module: monthly download, schema validation, retries,
       idempotent manifest, unit tests
 - [x] Databricks workspace + dbt connection configured and verified
-- [ ] Bronze layer: first monthly file loaded as a raw Delta table
-- [ ] Silver layer: staging model + data quality tests
+- [x] Bronze layer: first monthly file loaded as a raw Delta table (1 of 36 months)
+- [~] Silver layer: staging model built and tested against 1 month
+      - [x] NOC code columns: leading-zero loss found and fixed, length-tested
+      - [x] Date columns: format mismatch found and fixed
+      - [ ] Remaining ~50 columns not yet individually validated
+      - [ ] Not yet run against a second month to check for new surprises
 - [ ] Gold layer: marts for regional trends, occupation demand, salary bands
 - [ ] BI dashboard
 - [ ] CI wired to real pull requests
