@@ -11,7 +11,7 @@ models:
     tests:
       - dbt_utils.expression_is_true:
           arguments:
-            expression: "length(noc_2016_code) = 4"
+            expression: "length(noc16_code) = 4"
       - dbt_utils.expression_is_true:
           arguments:
             expression: "length(noc21_code) = 5"

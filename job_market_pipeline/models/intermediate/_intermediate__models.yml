@@ -1,0 +1,92 @@
+version: 2
+
+models:
+  - name: int_postings_enriched
+    description: >
+      One row per job posting -- staged postings with sparse/low-value
+      columns dropped and posting_detail_level derived, based on EDA
+      findings (see notebooks/eda/).
+
+    columns:
+      - name: job_posting_id
+        description: "Unique identifier for the posting, carried from staging."
+        tests:
+          - unique
+          - not_null
+
+      - name: job_title
+        description: "Raw job title text as posted."
+        tests:
+          - not_null
+
+      - name: posting_detail_level
+        description: >
+          'detailed' or 'minimal', derived from whether education_los is
+          populated. Reflects a structural finding from EDA: six columns
+          (education_los, experience_level, naics, employment_term_weekend,
+          employment_term_telework, hours_per) are null together in ~57.6%
+          of postings, suggesting two distinct posting submission paths.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['detailed', 'minimal']
+
+      - name: province_territory
+        description: "Province or Territory Name."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Alberta', 'British Columbia', 'Manitoba', 'New Brunswick',
+                    'Newfoundland and Labrador', 'Northwest Territories', 'Nova Scotia',
+                    'Nunavut', 'Ontario', 'Prince Edward Island', 'Québec',
+                    'Saskatchewan', 'Yukon']
+
+      - name: posting_date
+        description: "Date the posting first appeared on Job Bank."
+        tests:
+          - not_null
+
+      # Columns below are carried through with light documentation
+      # but no test -- not currently considered high-risk for silently
+      # producing wrong results if a bad value slips in.
+      - name: noc16_code
+        description: "NOC 2016 unit-group code, always 4 digits (leading zeros preserved)."
+      - name: noc16_code_name
+        description: "Corresponding description for its NOC 2016 code."
+      - name: noc21_code
+        description: "NOC 2021 unit-group code, always 5 digits (leading zeros preserved)."
+      - name: noc21_code_name
+        description: "Corresponding description for its NOC 2021 code."
+      - name: vacancy_count
+        description: "Number of positions advertised in this posting."
+      - name: city
+        description: "City, if defined, where the job takes place."
+      - name: economic_region
+        description: "Economic region where the work will be carried out."
+      - name: employment_type
+        description: "Full time / part time / part time leading to full time / not defined."
+      - name: employment_term
+        description: "Permanent / Seasonal / Term or Contract / Casual / not defined."
+      - name: salary_condition_detail
+        description: "Description of how the work is paid per unit of time or/and the salary range (example: $X hourly)."
+      - name: salary_min
+        description: "Minimum stated salary, not yet normalized to a common period."
+      - name: salary_max
+        description: "Maximum stated salary, not yet normalized to a common period."
+      - name: salary_period
+        description: "Period salary_min/max are expressed in (yearly, hourly, etc.)."
+      - name: hours_per
+        description: "Period hours_min/max are expressed in. ~57.6% null -- see posting_detail_level."
+      - name: hours_min
+        description: "Minimum stated hours, in the period given by hours_per."
+      - name: hours_max
+        description: "Maximum stated hours, in the period given by hours_per."
+
+    tests:  
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "length(noc16_code) = 4"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "length(noc21_code) = 5"
