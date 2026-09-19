@@ -96,10 +96,16 @@ Job Bank postings (36 monthly CSV exports, via CKAN open-data API)
       idempotent manifest, unit tests
 - [x] Databricks workspace + dbt connection configured and verified
 - [x] Bronze layer: first monthly file loaded as a raw Delta table (1 of 36 months)
-- [~] Silver layer: staging model built and tested against 1 month
+- [~] Silver layer: staging model + intermediate model, both built and tested against 1 month
       - [x] NOC code columns: leading-zero loss found and fixed, length-tested
       - [x] Date columns: format mismatch found and fixed
-      - [ ] Remaining ~50 columns not yet individually validated
+      - [x] Column profiling: null rates checked across all ~27 shortlisted columns
+      - [x] Found a structural null pattern (6 columns null together in ~57.6% of
+            rows) -- likely two distinct posting "shapes" (detailed vs. minimal)
+      - [x] int_postings_enriched built: dropped 6 sparse/low-value columns,
+            derived posting_detail_level flag, tested
+      - [ ] Remaining columns validated for value-level quality (not just nulls --
+            e.g. checked distinct values, formatting consistency)
       - [ ] Not yet run against a second month to check for new surprises
 - [ ] Gold layer: marts for regional trends, occupation demand, salary bands
 - [ ] BI dashboard
