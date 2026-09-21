@@ -22,18 +22,27 @@ enriched as (
         employment_type,
         employment_term,
         salary_condition_detail,
-        salary_period,
+        salary_period                                              as salary_period_raw,
+        case
+            when salary_period is not null then salary_period
+            when salary_condition_detail like '%commission%' then null
+            when salary_min is not null and salary_min < 1000 then 'Hour'
+            when salary_min is not null and salary_min >= 1000 then 'Year'
+            else null
+        end                                                          as salary_period,
+        case
+            when salary_period is null
+                and salary_condition_detail not like '%commission%'
+                and salary_min is not null
+            then true
+            else false
+        end                                                          as salary_period_was_inferred,
         salary_min,
         salary_max,
         hours_per,
         hours_min,
         hours_max,
 
-        -- Derived from the data profiling finding that education_los, experience_level,
-        -- naics, employment_term_weekend, employment_term_telework, and
-        -- hours_per are null together in ~57.6% of rows -- flags which
-        -- "shape" of posting this row is, without carrying the sparse
-        -- columns themselves forward.
         case
             when education_los is null then 'minimal'
             else 'detailed'
