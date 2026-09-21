@@ -3,7 +3,7 @@ version: 2
 models:
   - name: int_postings_enriched
     description: >
-      One row per job posting -- staged postings with sparse/low-value
+      One row per job posting, staged postings with sparse/low-value
       columns dropped and posting_detail_level derived, based on EDA
       findings (see notebooks/eda/).
 
@@ -61,7 +61,7 @@ models:
         description: "True if salary_period was derived via the magnitude rule above, rather than sourced directly."
 
       # Columns below are carried through with light documentation
-      # but no test -- not currently considered high-risk for silently
+      # but no test, not currently considered high-risk for silently
       # producing wrong results if a bad value slips in.
       - name: noc16_code
         description: "NOC 2016 unit-group code, always 4 digits (leading zeros preserved)."
@@ -73,6 +73,12 @@ models:
         description: "Corresponding description for its NOC 2021 code."
       - name: vacancy_count
         description: "Number of positions advertised in this posting."
+      - name: official_language
+        description: >
+          Language(s) the posting is available in. Source used the literal string
+          '*No data' rather than a true null for missing values, standardized to
+          'Not specified' here, same convention planned for other categorical
+          nulls (employment_type, employment_term).
       - name: city
         description: "City, if defined, where the job takes place."
       - name: economic_region
@@ -88,7 +94,7 @@ models:
       - name: salary_max
         description: "Maximum stated salary, not yet normalized to a common period."
       - name: hours_per
-        description: "Period hours_min/max are expressed in. ~57.6% null -- see posting_detail_level."
+        description: "Period hours_min/max are expressed in. ~57.6% null, see posting_detail_level."
       - name: hours_min
         description: "Minimum stated hours, in the period given by hours_per."
       - name: hours_max

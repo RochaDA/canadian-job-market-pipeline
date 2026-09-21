@@ -15,7 +15,11 @@ enriched as (
         noc21_code_name,
         posting_date,
         vacancy_count,
-        official_language,
+        case
+            when official_language is null then 'Not specified'
+            when trim(official_language) = '*No data' then 'Not specified'
+            else trim(official_language)
+        end as official_language,
         province_territory,
         city,
         economic_region,
