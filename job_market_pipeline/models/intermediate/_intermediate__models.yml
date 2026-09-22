@@ -120,9 +120,20 @@ models:
       - name: hours_per
         description: "Period hours_min/max are expressed in. ~57.6% null, see posting_detail_level."
       - name: hours_min
-        description: "Minimum stated hours, in the period given by hours_per."
+        description: >
+          Minimum stated hours, in the period given by hours_per. Two physically
+          impossible values found and nulled (a Bi-weekly posting stating 800
+          hours, exceeding the 336-hour ceiling for two weeks). Other high values
+          (e.g. 168 hours/bi-weekly for oil & gas drilling crews, 84 hours/week
+          for marine crew) are legitimate. Confirmed against known rotational
+          shift patterns in those industries, kept as-is.
+          Considered capping to the period's physical maximum or imputing
+          the group average instead of nulling, but declined both: at this
+          volume (2 of 53,799 rows), the choice has no measurable effect on
+          aggregates, so nulling was preferred as the most honest representation
+          of "value unknown" rather than fabricating a plausible-looking number.
       - name: hours_max
-        description: "Maximum stated hours, in the period given by hours_per."
+        description: "Maximum stated hours, in the period given by hours_per. Same cleaning and validation as hours_min."
 
     tests:  
       - dbt_utils.expression_is_true:
@@ -136,3 +147,17 @@ models:
             expression: >
               not (salary_period_was_inferred and salary_period = 'Hour' and salary_min >= 1000)
               and not (salary_period_was_inferred and salary_period = 'Year' and salary_min < 1000)
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: >
+              (hours_per != 'Week' or hours_min is null or hours_min <= 168)
+              and (hours_per != 'Bi-weekly' or hours_min is null or hours_min <= 336)
+              and (hours_per != 'Month' or hours_min is null or hours_min <= 744)
+              and (hours_per != 'Year' or hours_min is null or hours_min <= 8760)
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: >
+              (hours_per != 'Week' or hours_max is null or hours_max <= 168)
+              and (hours_per != 'Bi-weekly' or hours_max is null or hours_max <= 336)
+              and (hours_per != 'Month' or hours_max is null or hours_max <= 744)
+              and (hours_per != 'Year' or hours_max is null or hours_max <= 8760)

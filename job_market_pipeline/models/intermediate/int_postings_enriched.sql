@@ -56,8 +56,20 @@ enriched as (
         salary_min,
         salary_max,
         hours_per,
-        hours_min,
-        hours_max,
+        case
+            when hours_per = 'Week' and hours_min > 168 then null
+            when hours_per = 'Bi-weekly' and hours_min > 336 then null
+            when hours_per = 'Month' and hours_min > 744 then null
+            when hours_per = 'Year' and hours_min > 8760 then null
+            else hours_min
+        end as hours_min,
+        case
+            when hours_per = 'Week' and hours_max > 168 then null
+            when hours_per = 'Bi-weekly' and hours_max > 336 then null
+            when hours_per = 'Month' and hours_max > 744 then null
+            when hours_per = 'Year' and hours_max > 8760 then null
+            else hours_max
+        end as hours_max,
         case
             when education_los is null then 'minimal'
             else 'detailed'
