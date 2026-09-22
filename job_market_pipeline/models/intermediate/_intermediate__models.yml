@@ -64,7 +64,13 @@ models:
       # but no test, not currently considered high-risk for silently
       # producing wrong results if a bad value slips in.
       - name: noc16_code
-        description: "NOC 2016 unit-group code, always 4 digits (leading zeros preserved)."
+        description: >
+          NOC 2016 code. Null for 356 rows: 354 with no occupation classification
+          at all, plus 2 rows with a valid noc21_code but no NOC16 equivalent,
+          cause unconfirmed. The job titles for these 2 rows (production
+          supervisor, administrative support) are ordinary roles, not new
+          occupation categories, so this doesn't appear to be a genuine NOC21
+          classification gap. Standardized to 'Not specified'.
       - name: noc16_code_name
         description: "Corresponding description for its NOC 2016 code."
       - name: noc21_code
