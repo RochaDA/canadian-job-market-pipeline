@@ -96,9 +96,21 @@ models:
           rows, confirmed 1:1 correlation). Likely derived from city upstream,
           so missing city means no region to derive. Standardized to 'Not specified'.
       - name: employment_type
-        description: "Full time / part time / part time leading to full time / not defined."
+        description: >
+          Full time / Part time / Part time leading to full time. Null for 1,798
+          rows (3.3%). Considered inferring from employment_term (89.2% of
+          "Permanent employment" rows are Full time when both fields are known),
+          but declined: confidence is below the bar used for salary_period
+          (~100%), and the inference would only resolve ~167 of 1,798 nulls
+          while introducing a ~11% error rate on those rows. Standardized to
+          'Not specified' instead.
       - name: employment_term
-        description: "Permanent / Seasonal / Term or Contract / Casual / not defined."
+        description: >
+          Permanent / Term or contract / Seasonal / Casual employment. Null for
+          12,098 rows (22.5%). Notably sparser than other core fields, weakly
+          correlated with employment_type being null (only 699 of 12,098 null
+          together). No placeholder-string pattern found. Standardized to
+          'Not specified'.
       - name: salary_condition_detail
         description: "Description of how the work is paid per unit of time or/and the salary range (example: $X hourly)."
       - name: salary_min
@@ -115,10 +127,10 @@ models:
     tests:  
       - dbt_utils.expression_is_true:
           arguments:
-            expression: "length(noc16_code) = 4"
+            expression: "noc16_code = 'Not specified' or length(noc16_code) = 4"
       - dbt_utils.expression_is_true:
           arguments:
-            expression: "length(noc21_code) = 5"
+            expression: "noc21_code = 'Not specified' or length(noc21_code) = 5"
       - dbt_utils.expression_is_true:
           arguments:
             expression: >

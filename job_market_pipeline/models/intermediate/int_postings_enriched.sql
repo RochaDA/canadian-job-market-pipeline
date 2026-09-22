@@ -29,8 +29,14 @@ enriched as (
             when economic_region is null then 'Not specified'
             else trim(economic_region)
         end as economic_region,
-        employment_type,
-        employment_term,
+        case
+            when employment_type is null then 'Not specified'
+            else trim(employment_type)
+        end as employment_type,
+        case
+            when employment_term is null then 'Not specified'
+            else trim(employment_term)
+        end as employment_term,
         salary_condition_detail,
         salary_period as salary_period_raw,
         case
