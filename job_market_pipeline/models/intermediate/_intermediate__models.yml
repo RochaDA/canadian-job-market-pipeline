@@ -47,19 +47,6 @@ models:
         tests:
           - not_null
 
-      - name: salary_period_raw
-        description: "salary_period exactly as it appeared in the source, before any inference."
-
-      - name: salary_period
-        description: >
-          salary_period, with ~63 missing values inferred from salary_min's magnitude
-          when the raw field was null (< $1000 -> Hour, >= $1000 -> Year), based on
-          a confirmed clean gap in the data ($54 to $42,000, nothing between).
-          Stays null for commission-only postings and rows with no salary info.
-
-      - name: salary_period_was_inferred
-        description: "True if salary_period was derived via the magnitude rule above, rather than sourced directly."
-
       # Columns below are carried through with light documentation
       # but no test, not currently considered high-risk for silently
       # producing wrong results if a bad value slips in.
@@ -113,12 +100,32 @@ models:
           'Not specified'.
       - name: salary_condition_detail
         description: "Description of how the work is paid per unit of time or/and the salary range (example: $X hourly)."
+      - name: salary_period_raw
+        description: "salary_period exactly as it appeared in the source, before any inference."
+      - name: salary_period
+        description: >
+          salary_period, with ~63 missing values inferred from salary_min's magnitude
+          when the raw field was null (< $1000 -> Hour, >= $1000 -> Year), based on
+          a confirmed clean gap in the data ($54 to $42,000, nothing between).
+          Stays null for commission-only postings and rows with no salary info.
+      - name: salary_period_was_inferred
+        description: "True if salary_period was derived via the magnitude rule above, rather than sourced directly."
       - name: salary_min
         description: "Minimum stated salary, not yet normalized to a common period."
       - name: salary_max
         description: "Maximum stated salary, not yet normalized to a common period."
+      - name: hours_per_raw
+        description: "hours_per exactly as it appeared in the source, before any inference."
       - name: hours_per
-        description: "Period hours_min/max are expressed in. ~57.6% null, see posting_detail_level."
+        description: >
+          Period hours_min/max are expressed in. 3,470 rows had hours values but
+          no stated period. Inferred as 'Week' when hours_min <= 168 (99.97%
+          of these rows fall under 80, only 1 exceeds that but stays under the
+          168-hour weekly ceiling). Remaining 27,529 null rows have no hours
+          data at all and stay null. Part of the "minimal" posting_detail_level
+          cluster.
+      - name: hours_per_was_inferred
+        description: "True if hours_per was derived from hours_min's magnitude rather than sourced directly."
       - name: hours_min
         description: >
           Minimum stated hours, in the period given by hours_per. Two physically

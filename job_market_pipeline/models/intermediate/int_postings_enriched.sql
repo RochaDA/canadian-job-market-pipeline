@@ -38,24 +38,33 @@ enriched as (
             else trim(employment_term)
         end as employment_term,
         salary_condition_detail,
-        salary_period as salary_period_raw,
+        staged.salary_period as salary_period_raw,
         case
-            when salary_period is not null then salary_period
-            when salary_condition_detail like '%commission%' then null
-            when salary_min is not null and salary_min < 1000 then 'Hour'
-            when salary_min is not null and salary_min >= 1000 then 'Year'
+            when staged.salary_period is not null then staged.salary_period
+            when staged.salary_condition_detail like '%commission%' then null
+            when staged.salary_min is not null and staged.salary_min < 1000 then 'Hour'
+            when staged.salary_min is not null and staged.salary_min >= 1000 then 'Year'
             else null
         end as salary_period,
         case
-            when salary_period is null
-                and salary_condition_detail not like '%commission%'
-                and salary_min is not null
+            when staged.salary_period is null
+                and staged.salary_condition_detail not like '%commission%'
+                and staged.salary_min is not null
             then true
             else false
         end as salary_period_was_inferred,
         salary_min,
         salary_max,
-        hours_per,
+        staged.hours_per as hours_per_raw,
+        case
+            when staged.hours_per is not null then staged.hours_per
+            when staged.hours_min is not null then 'Week'
+            else null
+        end as hours_per,
+        case
+            when staged.hours_per is null and staged.hours_min is not null then true
+            else false
+        end as hours_per_was_inferred,
         case
             when hours_per = 'Week' and hours_min > 168 then null
             when hours_per = 'Bi-weekly' and hours_min > 336 then null
