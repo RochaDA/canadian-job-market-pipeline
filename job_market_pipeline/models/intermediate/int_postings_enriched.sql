@@ -21,8 +21,14 @@ enriched as (
             else trim(official_language)
         end as official_language,
         province_territory,
-        city,
-        economic_region,
+        case
+            when city is null then 'Not specified'
+            else trim(city)
+        end as city,
+        case
+            when economic_region is null then 'Not specified'
+            else trim(economic_region)
+        end as economic_region,
         employment_type,
         employment_term,
         salary_condition_detail,

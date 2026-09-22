@@ -80,9 +80,15 @@ models:
           'Not specified' here, same convention planned for other categorical
           nulls (employment_type, employment_term).
       - name: city
-        description: "City, if defined, where the job takes place."
+        description: >
+          City the posting is located in. Null for 393 rows (~0.7%) where only
+          province_territory was captured. Confirmed no postal code or other
+          location fallback exists for these rows. Standardized to 'Not specified'.
       - name: economic_region
-        description: "Economic region where the work will be carried out."
+        description: >
+          Sub-provincial economic region. Null exactly where city is null (393
+          rows, confirmed 1:1 correlation). Likely derived from city upstream,
+          so missing city means no region to derive. Standardized to 'Not specified'.
       - name: employment_type
         description: "Full time / part time / part time leading to full time / not defined."
       - name: employment_term
