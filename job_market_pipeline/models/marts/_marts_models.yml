@@ -18,3 +18,18 @@ models:
         tests:
           - unique
           - not_null
+  - name: dim_geography
+    description: >
+      One row per distinct province/city/economic_region combination found
+      in int_postings_enriched, including a 'Not specified' row for the
+      393 postings missing location detail (see int_postings_enriched
+      docs for the city/economic_region null correlation finding).
+    columns:
+      - name: geography_id
+        description: "Surrogate key, hashed from province_territory + city + economic_region."
+        tests:
+          - unique
+          - not_null
+      - name: province_territory
+        tests:
+          - not_null
