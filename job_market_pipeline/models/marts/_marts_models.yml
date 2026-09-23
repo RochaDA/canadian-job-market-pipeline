@@ -33,3 +33,19 @@ models:
       - name: province_territory
         tests:
           - not_null
+  - name: dim_occupation
+    description: >
+      One row per distinct noc16_code/noc21_code combination found in
+      int_postings_enriched, including a 'Not specified' row for postings
+      with no occupation classification (see int_postings_enriched docs
+      for the NOC null-handling and the unresolved 2-row NOC16/21
+      mismatch finding).
+    columns:
+      - name: occupation_id
+        description: "Surrogate key, hashed from noc16_code + noc21_code."
+        tests:
+          - unique
+          - not_null
+      - name: noc21_code
+        tests:
+          - not_null
