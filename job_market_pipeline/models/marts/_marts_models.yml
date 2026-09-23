@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: >
+      One row per calendar day, 2023-01-01 to 2026-12-31, generated
+      independently of postings data via dbt_utils.date_spine so every
+      day is represented (including days with zero postings). Letting
+      Power BI drill down from year to quarter to month to day.
+    columns:
+      - name: date_day
+        description: "The calendar date, used as the join key from fct_postings."
+        tests:
+          - unique
+          - not_null
+      - name: date_key
+        description: "Integer YYYYMMDD surrogate key, for BI tools that prefer an integer join key over a date type."
+        tests:
+          - unique
+          - not_null
