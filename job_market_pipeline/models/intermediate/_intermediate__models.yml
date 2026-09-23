@@ -104,10 +104,14 @@ models:
         description: "salary_period exactly as it appeared in the source, before any inference."
       - name: salary_period
         description: >
-          salary_period, with ~63 missing values inferred from salary_min's magnitude
-          when the raw field was null (< $1000 -> Hour, >= $1000 -> Year), based on
-          a confirmed clean gap in the data ($54 to $42,000, nothing between).
-          Stays null for commission-only postings and rows with no salary info.
+          salary_period, with corrections applied: ~63 missing values inferred
+          from salary_min's magnitude (< $1000 -> Hour, >= $1000 -> Year); a
+          group of rows across Hour/Day/Week/Bi-weekly/Month mislabeled when
+          salary_min was clearly an annual figure under the wrong period
+          (relabeled to 'Year'); and one row (job_posting_id 15828371, "$600/Hour"
+          for an articling law student) left null. Ambiguous between multiple
+          plausible periods with no way to determine the correct one, unlike
+          the other corrections which had an unambiguous magnitude gap.
       - name: salary_period_was_inferred
         description: "True if salary_period was derived via the magnitude rule above, rather than sourced directly."
       - name: salary_min
@@ -119,11 +123,13 @@ models:
       - name: hours_per
         description: >
           Period hours_min/max are expressed in. 3,470 rows had hours values but
-          no stated period. Inferred as 'Week' when hours_min <= 168 (99.97%
-          of these rows fall under 80, only 1 exceeds that but stays under the
-          168-hour weekly ceiling). Remaining 27,529 null rows have no hours
-          data at all and stay null. Part of the "minimal" posting_detail_level
-          cluster.
+          no stated period, inferred as 'Week' when hours_min <= 168. One
+          additional one-off correction: job_posting_id 15784703 had
+          hours_per='Year' with hours_min/max=40/40, corrected to 'Week'. A
+          second Year-labeled row (job_posting_id 15811636, hours_min/max=1/2,
+          electrician posting, normal $40/hr salary unrelated to this issue)
+          didn't fit that pattern. Hours nulled as an unrecoverable data-entry
+          artifact.
       - name: hours_per_was_inferred
         description: "True if hours_per was derived from hours_min's magnitude rather than sourced directly."
       - name: hours_min
@@ -141,6 +147,25 @@ models:
           of "value unknown" rather than fabricating a plausible-looking number.
       - name: hours_max
         description: "Maximum stated hours, in the period given by hours_per. Same cleaning and validation as hours_min."
+      - name: weekly_hours_basis
+        description: >
+          Estimated weekly hours, normalized from hours_per/hours_min/hours_max
+          regardless of their original unit. Falls back to 40 when no hours data
+          exists (see weekly_hours_source).
+      - name: weekly_hours_source
+        description: "'actual' when derived from real hours data, 'assumed_40' when falling back to a standard workweek."
+      - name: salary_annual_min
+        description: "Annualized minimum salary. Direct for Year/Month/Bi-weekly/Week; estimated for Hour (via weekly_hours_basis) and Day (assumes a 5-day workweek)."
+      - name: salary_annual_max
+        description: "Annualized maximum salary. Same method as salary_annual_min."
+      - name: salary_annual_method
+        description: "'direct' or 'estimated' (see salary_annual_min)."
+      - name: salary_hourly_min
+        description: "Estimated hourly minimum rate. Direct for Hour postings; derived from salary_annual_min otherwise."
+      - name: salary_hourly_max
+        description: "Estimated hourly maximum rate. Same method as salary_hourly_min."
+      - name: salary_hourly_method
+        description: "'direct' or 'estimated' (see salary_hourly_min)."
 
     tests:  
       - dbt_utils.expression_is_true:
@@ -149,11 +174,6 @@ models:
       - dbt_utils.expression_is_true:
           arguments:
             expression: "noc21_code = 'Not specified' or length(noc21_code) = 5"
-      - dbt_utils.expression_is_true:
-          arguments:
-            expression: >
-              not (salary_period_was_inferred and salary_period = 'Hour' and salary_min >= 1000)
-              and not (salary_period_was_inferred and salary_period = 'Year' and salary_min < 1000)
       - dbt_utils.expression_is_true:
           arguments:
             expression: >
@@ -168,3 +188,22 @@ models:
               and (hours_per != 'Bi-weekly' or hours_max is null or hours_max <= 336)
               and (hours_per != 'Month' or hours_max is null or hours_max <= 744)
               and (hours_per != 'Year' or hours_max is null or hours_max <= 8760)
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: >
+              not (salary_period_was_inferred and salary_period_raw is null
+                  and salary_period = 'Hour' and salary_min >= 1000)
+              and not (salary_period_was_inferred and salary_period_raw is null
+                  and salary_period = 'Year' and salary_min < 1000)
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "salary_annual_min is null or (salary_annual_min >= 0 and salary_annual_min <= 1000000)"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "salary_annual_max is null or (salary_annual_max >= 0 and salary_annual_max <= 1000000)"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "salary_hourly_min is null or (salary_hourly_min >= 0 and salary_hourly_min <= 1000)"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "salary_hourly_max is null or (salary_hourly_max >= 0 and salary_hourly_max <= 1000)"
