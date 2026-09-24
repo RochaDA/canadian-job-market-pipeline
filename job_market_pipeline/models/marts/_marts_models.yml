@@ -49,3 +49,15 @@ models:
       - name: noc21_code
         tests:
           - not_null
+  - name: dim_employment
+    description: >
+      Junk dimension bundling low-cardinality categorical attributes:
+      employment_type, employment_term, official_language, and
+      posting_detail_level. Distinct combinations found in
+      int_postings_enriched, hashed into a single surrogate key.
+    columns:
+      - name: employment_id
+        description: "Surrogate key, hashed from employment_type + employment_term + official_language + posting_detail_level."
+        tests:
+          - unique
+          - not_null
