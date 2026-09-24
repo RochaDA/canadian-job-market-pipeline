@@ -61,3 +61,46 @@ models:
         tests:
           - unique
           - not_null
+  - name: fct_postings
+    description: >
+      One row per job posting. The central fact table. Foreign keys are
+      computed via the same hash expressions used in each dimension's
+      surrogate key, so they resolve correctly independent of dimension
+      build order.
+    columns:
+      - name: job_posting_id
+        description: "Grain of this table: one row per posting."
+        tests:
+          - unique
+          - not_null
+      - name: geography_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_geography')
+                field: geography_id
+      - name: occupation_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_occupation')
+                field: occupation_id
+      - name: employment_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_employment')
+                field: employment_id
+      - name: posting_date
+        description: >
+          Foreign key to dim_date.date_day. Named for its business meaning in
+          this table rather than mirroring the dimension's key name exactly.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
