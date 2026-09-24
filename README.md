@@ -40,11 +40,10 @@ This project turns 36 months of raw Job Bank postings into a historical,
 queryable dataset via an automated, tested pipeline: postings are ingested
 incrementally and validated, modeled through a bronze/silver/gold layered
 transformation with data-quality checks at each stage, and exposed as
-ready-to-query marts (trends by region, by occupation, by salary band) that
-power dashboards and downstream analysis, including skills extraction from
-free text. The result functions closer to a lightweight internal
-labour-market-intelligence tool than a one-time analysis — rerunnable,
-versioned, and built to extend as new months of data arrive.
+a start schema that power dashboards and downstream analysis. 
+The result functions closer to a lightweight internal labour-market-intelligence 
+tool than a one-time analysis rerunnable, versioned, and built to extend as 
+new months of data arrive.
 
 ## Architecture
 
@@ -61,7 +60,7 @@ Job Bank postings (36 monthly CSV exports, via CKAN open-data API)
   silver   (dbt staging models -- cleaned, typed, tested)
         |
         v
-  gold     (dbt marts -- postings by region/occupation/salary band)
+  gold     star schema (fct_postings + dim_date, dim_geography, dim_occupation, dim_employment)
         |
         +--> BI dashboards (Databricks SQL)
         +--> ML/NLP notebooks (skills extraction, demand forecasting)
@@ -96,7 +95,7 @@ Job Bank postings (36 monthly CSV exports, via CKAN open-data API)
       idempotent manifest, unit tests
 - [x] Databricks workspace + dbt connection configured and verified
 - [x] Bronze layer: first monthly file loaded as a raw Delta table (1 of 36 months)
-- [~] Silver layer: staging model + intermediate model, both built and tested against 1 month
+- [x] Silver layer: staging model + intermediate model, fully validated against 1 month
       - [x] NOC code columns: leading-zero loss found and fixed, length-tested
       - [x] Date columns: format mismatch found and fixed
       - [x] Column profiling: null rates checked across all ~27 shortlisted columns
@@ -104,10 +103,20 @@ Job Bank postings (36 monthly CSV exports, via CKAN open-data API)
             rows) -- likely two distinct posting "shapes" (detailed vs. minimal)
       - [x] int_postings_enriched built: dropped 6 sparse/low-value columns,
             derived posting_detail_level flag, tested
-      - [ ] Remaining columns validated for value-level quality (not just nulls --
-            e.g. checked distinct values, formatting consistency)
+      - [x] Every remaining column individually profiled: distinct values,
+            placeholder strings (e.g. '*No data'), correlated nulls, and
+            null-handling standardized to 'Not specified' where applicable
+      - [x] Salary/hours normalization: derived weekly_hours_basis,
+            salary_annual_min/max, salary_hourly_min/max (each flagged
+            direct vs. estimated); found and fixed salary_period and
+            salary_max mislabeling across multiple periods; nulled a small
+            number of physically impossible or unrecoverable values
       - [ ] Not yet run against a second month to check for new surprises
-- [ ] Gold layer: marts for regional trends, occupation demand, salary bands
+- [x] Gold layer: star schema (fct_postings + dim_date, dim_geography,
+      dim_occupation, dim_employment). Built to preserve ad hoc analysis flexibility.
+      in Power BI. All foreign keys verified via dbt_utils relationships tests;
+      dim_date generated using dbt_utils.date_spine() for full drill-down 
+      (day -> week -> month -> quarter -> year)
 - [ ] BI dashboard
 - [ ] CI wired to real pull requests
 - [ ] Skills-extraction and forecasting notebooks
