@@ -104,49 +104,72 @@ models:
         description: "salary_period exactly as it appeared in the source, before any inference."
       - name: salary_period
         description: >
-          salary_period, with corrections applied: ~63 missing values inferred
-          from salary_min's magnitude (< $1000 -> Hour, >= $1000 -> Year); a
-          group of rows across Hour/Day/Week/Bi-weekly/Month mislabeled when
-          salary_min was clearly an annual figure under the wrong period
-          (relabeled to 'Year'); and one row (job_posting_id 15828371, "$600/Hour"
-          for an articling law student) left null. Ambiguous between multiple
-          plausible periods with no way to determine the correct one, unlike
-          the other corrections which had an unambiguous magnitude gap.
+          salary_period, with several corrections layered on, refined across
+          two months of real data:
+          (1) ~63 missing values inferred from salary_min's magnitude
+          (< $1000 -> Hour, >= $1000 -> Year);
+          (2) values mislabeled under Hour/Day/Week/Bi-weekly/Month when
+          salary_min exceeded a period-specific plausibility threshold
+          (e.g. > $200/hr, > $30,000/month). Relabeled to 'Year';
+          (3) rows where salary_condition_detail contains no '$' sign (e.g.
+          a union local number like "CUPE Local 777-01") or the phrase
+          "per night" (a period this model doesn't support). Set to null;
+          (4) salary_min values exceeding $10M, symptomatic of a source
+          text-extraction bug that concatenates two figures into one.
+          Set to null;
+          and (5) one row (job_posting_id 15828371, "$600/Hour" for an
+          articling law student) left null. Genuinely ambiguous between
+          multiple plausible periods, with no magnitude-based signal to
+          resolve it, unlike the other corrections.
       - name: salary_period_was_inferred
-        description: "True if salary_period was derived via the magnitude rule above, rather than sourced directly."
+        description: "True if salary_period was derived or corrected via any of the rules above, rather than taken as-is from the source."
       - name: salary_min
-        description: "Minimum stated salary, not yet normalized to a common period."
+        description: >
+          Minimum stated salary, not yet normalized to a common period.
+          Nulled when salary_condition_detail has no '$' sign, states a
+          "per night" rate, or exceeds $10M (see salary_period).
       - name: salary_max
-        description: "Maximum stated salary, not yet normalized to a common period."
+        description: >
+          Maximum stated salary, not yet normalized to a common period.
+          Independently validated against the same period-specific
+          plausibility thresholds as salary_min. Found to have its own,
+          separate mislabeling pattern (e.g. "$100.00 to $110,000.00
+          hourly", where only the max side was corrupted). Nulled when
+          implausible, without altering salary_period or salary_min.
       - name: hours_per_raw
-        description: "hours_per exactly as it appeared in the source, before any inference."
+        description: "hours_per exactly as it appeared in the source, before any inference or correction."
       - name: hours_per
         description: >
-          Period hours_min/max are expressed in. 3,470 rows had hours values but
-          no stated period, inferred as 'Week' when hours_min <= 168. One
-          additional one-off correction: job_posting_id 15784703 had
-          hours_per='Year' with hours_min/max=40/40, corrected to 'Week'. A
-          second Year-labeled row (job_posting_id 15811636, hours_min/max=1/2,
-          electrician posting, normal $40/hr salary unrelated to this issue)
-          didn't fit that pattern. Hours nulled as an unrecoverable data-entry
-          artifact.
+          Period hours_min/max are expressed in, corrected in its own CTE
+          (with_hours_per) so downstream logic reads the final value, not
+          the raw one. Corrections, refined across two months of data:
+          (1) ~3,470 rows with hours values but no stated period, inferred
+          as 'Week' when hours_min was a plausible weekly figure;
+          (2) hours_per='Year' rows where hours_min was under 80. Found to
+          be real weekly hours mislabeled as annual (confirmed as a
+          recurring pattern, not a one-off, after appearing across multiple
+          postings in both months). Relabeled to 'Week';
+          (3) hours_per='Year' rows where hours_min was under 10 . Too
+          small to be either a real annual or weekly figure. Set to null.
       - name: hours_per_was_inferred
-        description: "True if hours_per was derived from hours_min's magnitude rather than sourced directly."
+        description: "True if hours_per was derived or corrected via any of the rules above, rather than taken as-is from the source."
       - name: hours_min
         description: >
-          Minimum stated hours, in the period given by hours_per. Two physically
-          impossible values found and nulled (a Bi-weekly posting stating 800
-          hours, exceeding the 336-hour ceiling for two weeks). Other high values
-          (e.g. 168 hours/bi-weekly for oil & gas drilling crews, 84 hours/week
-          for marine crew) are legitimate. Confirmed against known rotational
-          shift patterns in those industries, kept as-is.
-          Considered capping to the period's physical maximum or imputing
-          the group average instead of nulling, but declined both: at this
-          volume (2 of 53,799 rows), the choice has no measurable effect on
-          aggregates, so nulling was preferred as the most honest representation
-          of "value unknown" rather than fabricating a plausible-looking number.
+          Minimum stated hours, in the period given by the corrected
+          hours_per. Nulled in two situations: values exceeding a period's
+          physical calendar maximum (e.g. over 336 hours in a bi-weekly
+          period), and values implausibly small for their period (under 5
+          hours/week, under 10 hours/year). Both patterns found to recur
+          across months, not isolated incidents. Legitimate high values
+          (e.g. 168 hours/bi-weekly for oil & gas drilling crews, 84
+          hours/week for marine crew) were confirmed against known
+          rotational shift patterns in those industries and kept as-is.
+          Capping to the physical maximum or imputing a group average was
+          considered and declined in favor of nulling, since at low volume
+          nulling is the more honest representation of "value unknown"
+          versus fabricating a plausible-looking number.
       - name: hours_max
-        description: "Maximum stated hours, in the period given by hours_per. Same cleaning and validation as hours_min."
+        description: "Maximum stated hours, in the period given by the corrected hours_per. Same cleaning and validation logic as hours_min."
       - name: weekly_hours_basis
         description: >
           Estimated weekly hours, normalized from hours_per/hours_min/hours_max
