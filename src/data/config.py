@@ -19,7 +19,7 @@ LANGUAGE = "en"
 
 # If set, only fetch this many of the most recent monthly resources.
 # Leave as None to fetch everything the CKAN API currently lists.
-MONTHS_TO_FETCH = 3
+MONTHS_TO_FETCH = 24
 
 # Hardcode specific URLs here to bypass discovery entirely (useful if the
 # CKAN API is unreachable but you already know the direct links).

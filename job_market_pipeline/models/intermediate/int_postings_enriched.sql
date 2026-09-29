@@ -27,6 +27,64 @@ with_hours_per as (
 
 ),
 
+with_salary_period as (
+
+    select
+        with_hours_per.*,
+
+        with_hours_per.salary_period                                           as salary_period_raw,
+
+        case
+            -- Not a real salary figure at all (e.g. a union local number)
+            when with_hours_per.salary_condition_detail not like '%$%' then null
+            -- A period this model doesn't support (no reliable way to annualize)
+            when with_hours_per.salary_condition_detail like '%per night%' then null
+            -- Concatenated/corrupted figures (billions-scale numbers)
+            when with_hours_per.salary_min > 10000000 then null
+            -- One genuinely ambiguous case: no magnitude signal resolves it
+            when with_hours_per.job_posting_id = 15828371 then null
+            -- Already correctly labeled 'Year' but implausible even for a top
+            -- executive (e.g. $9,000,010, $1,234,567) -- corrupted or
+            -- placeholder values, not a mislabeling issue
+            when with_hours_per.salary_min > 1000000 then null
+            -- Mislabeled: salary_min clearly an annual figure under the wrong period
+            when with_hours_per.salary_period = 'Hour' and with_hours_per.salary_min > 200 then 'Year'
+            when with_hours_per.salary_period = 'Day' and with_hours_per.salary_min > 3000 then 'Year'
+            when with_hours_per.salary_period = 'Week' and with_hours_per.salary_min > 10000 then 'Year'
+            when with_hours_per.salary_period = 'Bi-weekly' and with_hours_per.salary_min > 20000 then 'Year'
+            when with_hours_per.salary_period = 'Month' and with_hours_per.salary_min > 30000 then 'Year'
+            when with_hours_per.salary_period is not null then with_hours_per.salary_period
+            when with_hours_per.salary_condition_detail like '%commission%' then null
+            when with_hours_per.salary_min is not null and with_hours_per.salary_min < 200 then 'Hour'
+            when with_hours_per.salary_min is not null and with_hours_per.salary_min >= 1000 then 'Year'
+            -- salary_min between 200 and 1000 with no stated period: genuinely
+            -- ambiguous (could be a very high hourly rate or a daily rate),
+            -- no reliable signal either way -- left null rather than guessed
+            else null
+        end                                                                      as salary_period_corrected,
+
+        case
+            when with_hours_per.salary_condition_detail not like '%$%' then true
+            when with_hours_per.salary_condition_detail like '%per night%' then true
+            when with_hours_per.salary_min > 10000000 then true
+            when with_hours_per.job_posting_id = 15828371 then false
+            when with_hours_per.salary_min > 1000000 then true
+            when with_hours_per.salary_period = 'Hour' and with_hours_per.salary_min > 200 then true
+            when with_hours_per.salary_period = 'Day' and with_hours_per.salary_min > 3000 then true
+            when with_hours_per.salary_period = 'Week' and with_hours_per.salary_min > 10000 then true
+            when with_hours_per.salary_period = 'Bi-weekly' and with_hours_per.salary_min > 20000 then true
+            when with_hours_per.salary_period = 'Month' and with_hours_per.salary_min > 30000 then true
+            when with_hours_per.salary_period is null
+                and with_hours_per.salary_condition_detail not like '%commission%'
+                and with_hours_per.salary_min is not null
+            then true
+            else false
+        end                                                                      as salary_period_was_inferred
+
+    from with_hours_per
+
+),
+
 enriched as (
 
     select
@@ -63,88 +121,61 @@ enriched as (
         salary_condition_detail,
 
         -- Salary validation goes here
-        with_hours_per.salary_period                                    as salary_period_raw,
+        with_salary_period.salary_period_raw                                    as salary_period_raw,
+        with_salary_period.salary_period_corrected                              as salary_period,
+        with_salary_period.salary_period_was_inferred,
 
         case
-            when with_hours_per.salary_condition_detail not like '%$%' then null
-            when with_hours_per.salary_condition_detail like '%per night%' then null
-            when with_hours_per.salary_min > 10000000 then null
-            when with_hours_per.salary_period = 'Hour' and with_hours_per.salary_min > 200 then 'Year'
-            when with_hours_per.salary_period = 'Day' and with_hours_per.salary_min > 3000 then 'Year'
-            when with_hours_per.salary_period = 'Week' and with_hours_per.salary_min > 10000 then 'Year'
-            when with_hours_per.salary_period = 'Bi-weekly' and with_hours_per.salary_min > 20000 then 'Year'
-            when with_hours_per.salary_period = 'Month' and with_hours_per.salary_min > 30000 then 'Year'
-            when with_hours_per.salary_period = 'Hour' and with_hours_per.salary_min = 600 and with_hours_per.job_posting_id = 15828371 then null
-            when with_hours_per.salary_period is not null then with_hours_per.salary_period
-            when with_hours_per.salary_condition_detail like '%commission%' then null
-            when with_hours_per.salary_min is not null and with_hours_per.salary_min < 1000 then 'Hour'
-            when with_hours_per.salary_min is not null and with_hours_per.salary_min >= 1000 then 'Year'
-            else null
-        end                                                             as salary_period,
+            when with_salary_period.salary_condition_detail not like '%$%' then null
+            when with_salary_period.salary_min > 1000000 then null
+            else with_salary_period.salary_min
+        end                                                                     as salary_min,
 
         case
-            when with_hours_per.salary_condition_detail not like '%$%' then true
-            when with_hours_per.salary_condition_detail like '%per night%' then true
-            when with_hours_per.salary_min > 10000000 then true
-            when with_hours_per.salary_period = 'Hour' and with_hours_per.salary_min > 200 then true
-            when with_hours_per.salary_period = 'Day' and with_hours_per.salary_min > 3000 then true
-            when with_hours_per.salary_period = 'Week' and with_hours_per.salary_min > 10000 then true
-            when with_hours_per.salary_period = 'Bi-weekly' and with_hours_per.salary_min > 20000 then true
-            when with_hours_per.salary_period = 'Month' and with_hours_per.salary_min > 30000 then true
-            when with_hours_per.job_posting_id = 15828371 then false
-            when with_hours_per.salary_period is null
-                and with_hours_per.salary_condition_detail not like '%commission%'
-                and with_hours_per.salary_min is not null
-            then true
-            else false
-        end                                                             as salary_period_was_inferred,
-
-        with_hours_per.salary_min                                       as salary_min,
-
-        case
-            when with_hours_per.salary_min > 10000000 then null
-            when with_hours_per.salary_period = 'Hour' and with_hours_per.salary_max > 200 then null
-            when with_hours_per.salary_period = 'Day' and with_hours_per.salary_max > 3000 then null
-            when with_hours_per.salary_period = 'Week' and with_hours_per.salary_max > 10000 then null
-            when with_hours_per.salary_period = 'Bi-weekly' and with_hours_per.salary_max > 20000 then null
-            when with_hours_per.salary_period = 'Month' and with_hours_per.salary_max > 30000 then null
-            when with_hours_per.salary_period = 'Year' and with_hours_per.salary_max > 1000000 then null
-            else with_hours_per.salary_max
-        end                                                             as salary_max,
+            when with_salary_period.salary_condition_detail not like '%$%' then null
+            when with_salary_period.salary_min > 1000000 then null
+            when with_salary_period.salary_period_corrected = 'Hour' and with_salary_period.salary_max > 200 then null
+            when with_salary_period.salary_period_corrected = 'Day' and with_salary_period.salary_max > 3000 then null
+            when with_salary_period.salary_period_corrected = 'Week' and with_salary_period.salary_max > 10000 then null
+            when with_salary_period.salary_period_corrected = 'Bi-weekly' and with_salary_period.salary_max > 20000 then null
+            when with_salary_period.salary_period_corrected = 'Month' and with_salary_period.salary_max > 30000 then null
+            when with_salary_period.salary_period_corrected = 'Year' and with_salary_period.salary_max > 1000000 then null
+            else with_salary_period.salary_max
+        end                                                                     as salary_max,
         -- Salary ends here
 
         -- Work time validation
-        with_hours_per.hours_per                                        as hours_per_raw,
-        with_hours_per.hours_per_corrected                              as hours_per,
-        with_hours_per.hours_per_was_inferred,
+        with_salary_period.hours_per                                            as hours_per_raw,
+        with_salary_period.hours_per_corrected                                  as hours_per,
+        with_salary_period.hours_per_was_inferred,
 
         case
-            when with_hours_per.hours_per_corrected = 'Week' and with_hours_per.hours_min is not null and with_hours_per.hours_min < 5 then null
-            when with_hours_per.hours_per_corrected = 'Year' and with_hours_per.hours_min is not null and with_hours_per.hours_min < 10 then null
-            when with_hours_per.hours_per_corrected = 'Week' and with_hours_per.hours_min > 168 then null
-            when with_hours_per.hours_per_corrected = 'Bi-weekly' and with_hours_per.hours_min > 336 then null
-            when with_hours_per.hours_per_corrected = 'Month' and with_hours_per.hours_min > 744 then null
-            when with_hours_per.hours_per_corrected = 'Year' and with_hours_per.hours_min > 8760 then null
-            else with_hours_per.hours_min
-        end                                                             as hours_min,
+            when with_salary_period.hours_per_corrected = 'Week' and with_salary_period.hours_min is not null and with_salary_period.hours_min < 5 then null
+            when with_salary_period.hours_per_corrected = 'Year' and with_salary_period.hours_min is not null and with_salary_period.hours_min < 10 then null
+            when with_salary_period.hours_per_corrected = 'Week' and with_salary_period.hours_min > 168 then null
+            when with_salary_period.hours_per_corrected = 'Bi-weekly' and with_salary_period.hours_min > 336 then null
+            when with_salary_period.hours_per_corrected = 'Month' and with_salary_period.hours_min > 744 then null
+            when with_salary_period.hours_per_corrected = 'Year' and with_salary_period.hours_min > 8760 then null
+            else with_salary_period.hours_min
+        end                                                                     as hours_min,
 
         case
-            when with_hours_per.hours_per_corrected = 'Week' and with_hours_per.hours_max is not null and with_hours_per.hours_max < 5 then null
-            when with_hours_per.hours_per_corrected = 'Year' and with_hours_per.hours_min is not null and with_hours_per.hours_min < 10 then null
-            when with_hours_per.hours_per_corrected = 'Week' and with_hours_per.hours_max > 168 then null
-            when with_hours_per.hours_per_corrected = 'Bi-weekly' and with_hours_per.hours_max > 336 then null
-            when with_hours_per.hours_per_corrected = 'Month' and with_hours_per.hours_max > 744 then null
-            when with_hours_per.hours_per_corrected = 'Year' and with_hours_per.hours_max > 8760 then null
-            else with_hours_per.hours_max
-        end                                                             as hours_max,
+            when with_salary_period.hours_per_corrected = 'Week' and with_salary_period.hours_max is not null and with_salary_period.hours_max < 5 then null
+            when with_salary_period.hours_per_corrected = 'Year' and with_salary_period.hours_min is not null and with_salary_period.hours_min < 10 then null
+            when with_salary_period.hours_per_corrected = 'Week' and with_salary_period.hours_max > 168 then null
+            when with_salary_period.hours_per_corrected = 'Bi-weekly' and with_salary_period.hours_max > 336 then null
+            when with_salary_period.hours_per_corrected = 'Month' and with_salary_period.hours_max > 744 then null
+            when with_salary_period.hours_per_corrected = 'Year' and with_salary_period.hours_max > 8760 then null
+            else with_salary_period.hours_max
+        end                                                                     as hours_max,
         -- Time ends here
 
         case
-            when with_hours_per.education_los is null then 'minimal'
+            when with_salary_period.education_los is null then 'minimal'
             else 'detailed'
         end as posting_detail_level
 
-    from with_hours_per
+    from with_salary_period
 
 ),
 
@@ -175,7 +206,21 @@ with_hours_basis as (
         case
             when hours_per is not null and hours_min is not null then 'actual'
             else 'assumed_40'
-        end as weekly_hours_source
+        end as weekly_hours_source,
+
+        -- Used only for salary_period = 'Day': treats hours_min/max as that
+        -- single working day's hours (regardless of what hours_per says),
+        -- since a Day-period salary divided by weekly_hours_basis produces
+        -- a meaningless rate. See optometrist finding: hours_per='Week' with
+        -- hours_min/max=6-8 alongside a Day salary is almost certainly one
+        -- day's hours, mislabeled.
+        case
+            when salary_period = 'Day' and hours_min is not null and hours_max is not null
+                then (hours_min + hours_max) / 2.0
+            when salary_period = 'Day' and hours_min is not null
+                then hours_min
+            else null
+        end as day_hours_basis
 
     from enriched
 
@@ -221,12 +266,14 @@ with_hourly_salary as (
         *,
         case
             when salary_period = 'Hour' then round(salary_min, 2)
+            when salary_period = 'Day' and day_hours_basis is not null then round(salary_min / day_hours_basis, 2)
             when salary_annual_min is not null then round(salary_annual_min / (weekly_hours_basis * 52), 2)
             else null
         end as salary_hourly_min,
 
         case
             when salary_period = 'Hour' then round(salary_max, 2)
+            when salary_period = 'Day' and day_hours_basis is not null then round(salary_max / day_hours_basis, 2)
             when salary_annual_max is not null then round(salary_annual_max / (weekly_hours_basis * 52), 2)
             else null
         end as salary_hourly_max,
