@@ -42,13 +42,13 @@ with_salary_period as (
             -- Concatenated/corrupted figures (billions-scale numbers)
             when with_hours_per.salary_min > 10000000 then null
             -- One genuinely ambiguous case: no magnitude signal resolves it
-            when with_hours_per.job_posting_id = 15828371 then null
+            when with_hours_per.salary_period = 'Hour' and with_hours_per.salary_min between 201 and 999 then null
             -- Already correctly labeled 'Year' but implausible even for a top
             -- executive (e.g. $9,000,010, $1,234,567) -- corrupted or
             -- placeholder values, not a mislabeling issue
             when with_hours_per.salary_min > 1000000 then null
             -- Mislabeled: salary_min clearly an annual figure under the wrong period
-            when with_hours_per.salary_period = 'Hour' and with_hours_per.salary_min > 200 then 'Year'
+            when with_hours_per.salary_period = 'Hour' and with_hours_per.salary_min >= 1000 then 'Year'
             when with_hours_per.salary_period = 'Day' and with_hours_per.salary_min > 3000 then 'Year'
             when with_hours_per.salary_period = 'Week' and with_hours_per.salary_min > 10000 then 'Year'
             when with_hours_per.salary_period = 'Bi-weekly' and with_hours_per.salary_min > 20000 then 'Year'
@@ -67,9 +67,9 @@ with_salary_period as (
             when with_hours_per.salary_condition_detail not like '%$%' then true
             when with_hours_per.salary_condition_detail like '%per night%' then true
             when with_hours_per.salary_min > 10000000 then true
-            when with_hours_per.job_posting_id = 15828371 then false
+            when with_hours_per.salary_period = 'Hour' and with_hours_per.salary_min between 201 and 999 then true
             when with_hours_per.salary_min > 1000000 then true
-            when with_hours_per.salary_period = 'Hour' and with_hours_per.salary_min > 200 then true
+            when with_hours_per.salary_period = 'Hour' and with_hours_per.salary_min >= 1000 then true
             when with_hours_per.salary_period = 'Day' and with_hours_per.salary_min > 3000 then true
             when with_hours_per.salary_period = 'Week' and with_hours_per.salary_min > 10000 then true
             when with_hours_per.salary_period = 'Bi-weekly' and with_hours_per.salary_min > 20000 then true
@@ -89,7 +89,8 @@ enriched as (
 
     select
         job_posting_id,
-        job_title,
+        job_posting_id_was_generated,
+        coalesce(job_title, original_job_title, 'Not specified') as job_title,
         case when noc16_code is null then 'Not specified' else noc16_code end as noc16_code,
         case when noc16_code_name is null then 'Not specified' else noc16_code_name end as noc16_code_name,
         case when noc21_code is null then 'Not specified' else noc21_code end as noc21_code,
@@ -101,7 +102,11 @@ enriched as (
             when trim(official_language) = '*No data' then 'Not specified'
             else trim(official_language)
         end as official_language,
-        province_territory,
+        case
+            when province_territory is null and various_location = 'Yes' then 'Various Locations'
+            when province_territory is null then 'Not specified'
+            else trim(province_territory)
+        end as province_territory,
         case
             when city is null then 'Not specified'
             else trim(city)

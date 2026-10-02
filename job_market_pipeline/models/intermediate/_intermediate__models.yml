@@ -32,7 +32,13 @@ models:
                 values: ['detailed', 'minimal']
 
       - name: province_territory
-        description: "Province or Territory Name."
+        description: >
+          Province or territory name. Null for 326 rows (0.6% of loaded data):
+          314 are confirmed multi-region postings (various_location = 'Yes',
+          e.g. federal government roles spanning several provinces) -- labeled
+          'Various Locations' to preserve that distinction. The remaining ~12
+          have no clear explanation and are labeled 'Not specified', consistent
+          with other categorical nulls in this model.
         tests:
           - not_null
           - accepted_values:
@@ -40,7 +46,7 @@ models:
                 values: ['Alberta', 'British Columbia', 'Manitoba', 'New Brunswick',
                     'Newfoundland and Labrador', 'Northwest Territories', 'Nova Scotia',
                     'Nunavut', 'Ontario', 'Prince Edward Island', 'Québec',
-                    'Saskatchewan', 'Yukon']
+                    'Saskatchewan', 'Yukon', 'Not specified', 'Various Locations']
 
       - name: posting_date
         description: "Date the posting first appeared on Job Bank."
