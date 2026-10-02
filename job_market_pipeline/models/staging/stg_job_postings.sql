@@ -7,7 +7,7 @@ with source as (
 renamed as (
 
     select
-        cast(`WIC Job Location Snapshot ID` as bigint)                     as job_posting_id,
+        cast(`WIC Job Location Snapshot ID` as string)                     as job_posting_id_source,
         trim(`Job Title`)                                                    as job_title,
         trim(`Original Job Title`)                                           as original_job_title,
         lpad(regexp_replace(`NOC 2016 Code`, '\\.0$', ''), 4, '0')           as noc16_code,
@@ -15,7 +15,16 @@ renamed as (
         lpad(regexp_replace(`NOC21 Code`, '\\.0$', ''), 5, '0')              as noc21_code,
         trim(`NOC21 Code Name`)                                              as noc21_code_name,
         cast(`External Indicator` as bigint)                                as external_indicator,
-        to_date(`First Posting Date`, 'yyyy/MM/dd')                                   as posting_date,
+
+        -- yyyy/MM/dd is the usual format, but Sep 2024 (and possibly
+        -- earlier months) uses yyyy-MM-dd instead -- try both, using
+        -- try_to_date so a non-matching attempt returns null rather than
+        -- erroring, and coalesce picks whichever one actually parsed.
+        coalesce(
+            try_to_date(`First Posting Date`, 'yyyy/MM/dd'),
+            try_to_date(`First Posting Date`, 'yyyy-MM-dd')
+        )                                                                    as posting_date,
+
         cast(`Vacancy Count` as bigint)                                      as vacancy_count,
         trim(`Official Language`)                                            as official_language,
         trim(`Education LOS`)                                                as education_los,
@@ -30,8 +39,17 @@ renamed as (
         trim(`Various Location`)                                            as various_location,
         trim(`Employment Type`)                                             as employment_type,
         trim(`Employment Term`)                                             as employment_term,
-        to_date(`Employment Term Start Date`, 'yyyy/MM/dd')                          as employment_term_start_date,
-        to_date(`Employment Term End Date`, 'yyyy/MM/dd')                            as employment_term_end_date,
+
+        coalesce(
+            try_to_date(`Employment Term Start Date`, 'yyyy/MM/dd'),
+            try_to_date(`Employment Term Start Date`, 'yyyy-MM-dd')
+        )                                                                    as employment_term_start_date,
+
+        coalesce(
+            try_to_date(`Employment Term End Date`, 'yyyy/MM/dd'),
+            try_to_date(`Employment Term End Date`, 'yyyy-MM-dd')
+        )                                                                    as employment_term_end_date,
+
         trim(`Employment Term Oncall`)                                      as employment_term_oncall,
         trim(`Employment Term Overtime`)                                    as employment_term_overtime,
         trim(`Employment Term Day`)                                         as employment_term_day,
@@ -76,6 +94,69 @@ renamed as (
 
     from source
 
+),
+
+with_generated_id as (
+
+    select
+        renamed.*,
+
+        -- A deterministic hash of fields unlikely to collide across
+        -- genuinely different postings. Only used as a fallback when the
+        -- source's own ID is missing (confirmed: entirely absent for all
+        -- of September 2024 -- see notebooks/eda/ for the audit).
+        sha2(
+            concat_ws(
+                '|',
+                coalesce(job_title, ''),
+                coalesce(cast(posting_date as string), ''),
+                coalesce(province_territory, ''),
+                coalesce(city, ''),
+                coalesce(cast(salary_min as string), ''),
+                coalesce(cast(salary_max as string), ''),
+                coalesce(noc21_code, '')
+            ),
+            256
+        ) as composite_hash
+
+    from renamed
+
+),
+
+with_dedup_rank as (
+
+    select
+        *,
+
+        -- Disambiguates genuinely identical postings sharing the same
+        -- composite hash (e.g. an employer posting several identical
+        -- vacancies, as seen with the optometrist rows earlier). The
+        -- ORDER BY is an accepted, documented limitation: for rows
+        -- identical across every field used in the hash, there's no
+        -- remaining signal to break the tie deterministically -- but
+        -- since those rows are also identical in every exposed column,
+        -- which specific row receives which generated ID doesn't affect
+        -- any downstream count, aggregate, or join.
+        row_number() over (partition by composite_hash order by composite_hash) as dedup_rank
+
+    from with_generated_id
+
+),
+
+final as (
+
+    select
+        * except (job_posting_id_source, composite_hash, dedup_rank),
+
+        coalesce(
+            job_posting_id_source,
+            concat('GEN-', composite_hash, '-', cast(dedup_rank as string))
+        )                                    as job_posting_id,
+
+        job_posting_id_source is null        as job_posting_id_was_generated
+
+    from with_dedup_rank
+
 )
 
-select * from renamed
+select * from final

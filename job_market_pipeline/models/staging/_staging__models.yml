@@ -4,8 +4,20 @@ models:
   - name: stg_job_postings
     columns:
       - name: job_posting_id
+        description: >
+          Unique identifier for the posting. Sourced directly from
+          WIC Job Location Snapshot ID when present; generated as a
+          SHA-256 hash of job_title, posting_date, location, salary, and
+          NOC code when absent (confirmed: entirely missing for all of
+          June, July, August, and September 2024, see job_posting_id_was_generated). Changed
+          from bigint to string to accommodate generated IDs.
         tests:
           - unique
+          - not_null
+
+      - name: job_posting_id_was_generated
+        description: "True if job_posting_id was generated (source ID missing), false if sourced directly."
+        tests:
           - not_null
 
     tests:
