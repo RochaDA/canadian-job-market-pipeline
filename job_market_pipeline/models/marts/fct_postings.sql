@@ -1,18 +1,22 @@
 select
     job_posting_id,
+    job_posting_id_was_generated,
 
-    /*Foreign keys, computed with the same hash expressions as each
-    dimension's surrogate key. Guarantees a match without requiring
-    dim tables to be rebuilt first, and stays correct even if a future
-    - month introduces a combination dim_geography/dim_occupation/
-    - dim_employment hasn't seen yet (see earlier discussion on scaling).*/
+    /*
+    Foreign keys, computed with the same hash expressions as each
+    dimension's surrogate key. This guarantees a match without requiring
+    the dimension tables to be built first, and stays correct if a future
+    month introduces a combination a dimension hasn't seen yet.
+    */
     {{ dbt_utils.generate_surrogate_key(['province_territory', 'city', 'economic_region']) }} as geography_id,
     {{ dbt_utils.generate_surrogate_key(['noc16_code', 'noc21_code']) }} as occupation_id,
     {{ dbt_utils.generate_surrogate_key(['employment_type', 'employment_term', 'official_language', 'posting_detail_level']) }} as employment_id,
     posting_date,
 
-    /*Degenerate dimensions. Descriptive but too high-cardinality/free-text
-    to normalize into their own dimension table */
+    /*
+    Degenerate dimensions: descriptive, but too high-cardinality or
+    free-text to normalize into their own dimension table.
+    */
     job_title,
     salary_condition_detail,
 

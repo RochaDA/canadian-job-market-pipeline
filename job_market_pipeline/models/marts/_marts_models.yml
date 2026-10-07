@@ -3,10 +3,10 @@ version: 2
 models:
   - name: dim_date
     description: >
-      One row per calendar day, 2023-01-01 to 2026-12-31, generated
-      independently of postings data via dbt_utils.date_spine so every
-      day is represented (including days with zero postings). Letting
-      Power BI drill down from year to quarter to month to day.
+      One row per calendar day from 2023-01-01 to 2026-12-31, generated
+      independently of postings data via dbt_utils.date_spine so every day
+      is represented, including days with zero postings. Lets Power BI
+      drill down from year to quarter to month to day.
     columns:
       - name: date_day
         description: "The calendar date, used as the join key from fct_postings."
@@ -18,12 +18,14 @@ models:
         tests:
           - unique
           - not_null
+
   - name: dim_geography
     description: >
       One row per distinct province/city/economic_region combination found
-      in int_postings_enriched, including a 'Not specified' row for the
-      393 postings missing location detail (see int_postings_enriched
-      docs for the city/economic_region null correlation finding).
+      in int_postings_enriched. Two special values appear: 'Various Locations'
+      as the province for multi-region postings (mostly federal government
+      roles), and 'Not specified' where location detail is missing (see the
+      int_postings_enriched docs for the city/economic_region correlation).
     columns:
       - name: geography_id
         description: "Surrogate key, hashed from province_territory + city + economic_region."
@@ -33,13 +35,13 @@ models:
       - name: province_territory
         tests:
           - not_null
+
   - name: dim_occupation
     description: >
       One row per distinct noc16_code/noc21_code combination found in
-      int_postings_enriched, including a 'Not specified' row for postings
-      with no occupation classification (see int_postings_enriched docs
-      for the NOC null-handling and the unresolved 2-row NOC16/21
-      mismatch finding).
+      int_postings_enriched, including 'Not specified' values for postings
+      with no occupation classification, and for the few postings that have
+      a NOC21 code but no NOC16 equivalent (see int_postings_enriched docs).
     columns:
       - name: occupation_id
         description: "Surrogate key, hashed from noc16_code + noc21_code."
@@ -49,31 +51,45 @@ models:
       - name: noc21_code
         tests:
           - not_null
+
   - name: dim_employment
     description: >
       Junk dimension bundling low-cardinality categorical attributes:
       employment_type, employment_term, official_language, and
       posting_detail_level. Distinct combinations found in
-      int_postings_enriched, hashed into a single surrogate key.
+      int_postings_enriched, hashed into a single surrogate key. Note that
+      official_language is 'Not specified' for all of September 2024 to
+      December 2025, when the source file has no such column, so language
+      analysis is only reliable outside that window.
     columns:
       - name: employment_id
         description: "Surrogate key, hashed from employment_type + employment_term + official_language + posting_detail_level."
         tests:
           - unique
           - not_null
+
   - name: fct_postings
     description: >
       One row per job posting. The central fact table. Foreign keys are
       computed via the same hash expressions used in each dimension's
       surrogate key, so they resolve correctly independent of dimension
       build order.
+    tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: ref('int_postings_enriched')
     columns:
       - name: job_posting_id
         description: "Grain of this table: one row per posting."
         tests:
           - unique
           - not_null
+      - name: job_posting_id_was_generated
+        description: "True when job_posting_id was generated because the source ID was missing (June-September 2024)."
+        tests:
+          - not_null
       - name: geography_id
+        description: "Foreign key to dim_geography."
         tests:
           - not_null
           - relationships:
@@ -81,6 +97,7 @@ models:
                 to: ref('dim_geography')
                 field: geography_id
       - name: occupation_id
+        description: "Foreign key to dim_occupation."
         tests:
           - not_null
           - relationships:
@@ -88,6 +105,7 @@ models:
                 to: ref('dim_occupation')
                 field: occupation_id
       - name: employment_id
+        description: "Foreign key to dim_employment."
         tests:
           - not_null
           - relationships:
@@ -104,3 +122,19 @@ models:
               arguments:
                 to: ref('dim_date')
                 field: date_day
+      - name: job_title
+        description: "Degenerate dimension: job title as posted, falling back to the original title or 'Not specified'."
+      - name: salary_condition_detail
+        description: "Degenerate dimension: the free-text salary description from the posting."
+      - name: vacancy_count
+        description: "Number of positions advertised in the posting."
+      - name: salary_annual_min
+        description: "Annualized minimum salary. See salary_annual_method for whether it was reported directly or estimated."
+      - name: salary_annual_max
+        description: "Annualized maximum salary. Same method as salary_annual_min."
+      - name: salary_hourly_min
+        description: "Hourly minimum rate. See salary_hourly_method for whether it was reported directly or estimated."
+      - name: salary_hourly_max
+        description: "Hourly maximum rate. Same method as salary_hourly_min."
+      - name: weekly_hours_basis
+        description: "Estimated weekly hours, falling back to 40 when no hours were stated (see weekly_hours_source)."
