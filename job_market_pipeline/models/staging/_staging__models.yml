@@ -2,6 +2,10 @@ version: 2
 
 models:
   - name: stg_job_postings
+    description: >
+      One row per posting, lightly cleaned and typed from bronze. Handles
+      known source drift (missing job_posting_id for Jun-Sep 2024, two date
+      formats). No business logic.
     columns:
       - name: job_posting_id
         description: >
@@ -19,7 +23,14 @@ models:
         description: "True if job_posting_id was generated (source ID missing), false if sourced directly."
         tests:
           - not_null
-
+      - name: posting_date
+        description: >
+          Parsed from First Posting Date, trying yyyy/MM/dd and then
+          yyyy-MM-dd (June-Sept 2024 use dashes, other months use slashes).
+          Null means both formats failed, i.e. a new date format has
+          appeared in the source.
+        tests:
+          - not_null
     tests:
       - dbt_utils.expression_is_true:
           arguments:

@@ -9,13 +9,22 @@ models:
 
     columns:
       - name: job_posting_id
-        description: "Unique identifier for the posting, carried from staging."
+        description: >
+          Unique identifier for the posting, carried from staging. String
+          type: either the source ID (WIC Job Location Snapshot ID) or a
+          generated 'sha256' key when the source ID is missing
+          (June-September 2024).
+
+      - name: job_posting_id_was_generated
+        description: "True when job_posting_id was generated because the source ID was missing."
         tests:
-          - unique
           - not_null
 
       - name: job_title
-        description: "Raw job title text as posted."
+        description: >
+          Job title as posted. When the cleaned title is missing, falls back
+          to original_job_title, and then to 'Not specified' if both are
+          empty. Never null.
         tests:
           - not_null
 
@@ -74,10 +83,10 @@ models:
         description: "Number of positions advertised in this posting."
       - name: official_language
         description: >
-          Language(s) the posting is available in. Source used the literal string
-          '*No data' rather than a true null for missing values, standardized to
-          'Not specified' here, same convention planned for other categorical
-          nulls (employment_type, employment_term).
+          Language(s) the posting is available in. Two sources of missing
+          values, both standardized to 'Not specified': the literal string
+          '*No data', and a true null for months where the source file has
+          no Official Language column (September 2024 to December 2025).
       - name: city
         description: >
           City the posting is located in. Null for 393 rows (~0.7%) where only
@@ -110,30 +119,27 @@ models:
         description: "salary_period exactly as it appeared in the source, before any inference."
       - name: salary_period
         description: >
-          salary_period, with several corrections layered on, refined across
-          two months of real data:
-          (1) ~63 missing values inferred from salary_min's magnitude
-          (< $1000 -> Hour, >= $1000 -> Year);
-          (2) values mislabeled under Hour/Day/Week/Bi-weekly/Month when
-          salary_min exceeded a period-specific plausibility threshold
-          (e.g. > $200/hr, > $30,000/month). Relabeled to 'Year';
-          (3) rows where salary_condition_detail contains no '$' sign (e.g.
-          a union local number like "CUPE Local 777-01") or the phrase
-          "per night" (a period this model doesn't support). Set to null;
-          (4) salary_min values exceeding $10M, symptomatic of a source
-          text-extraction bug that concatenates two figures into one.
-          Set to null;
-          and (5) one row (job_posting_id 15828371, "$600/Hour" for an
-          articling law student) left null. Genuinely ambiguous between
-          multiple plausible periods, with no magnitude-based signal to
-          resolve it, unlike the other corrections.
+          Period the salary is expressed in, corrected from the raw value
+          using magnitude-based rules derived from the data:
+          (1) a missing period is inferred from salary_min: under $200 is
+          Hour, $1,000 or more is Year, and $200-$999 is left null as
+          ambiguous;
+          (2) values mislabeled under Hour/Day/Week/Bi-weekly/Month are
+          relabeled to Year when salary_min exceeds a period-specific
+          ceiling (Hour from $1,000; Day over $3,000; Week over $10,000;
+          Bi-weekly over $20,000; Month over $30,000);
+          (3) an Hour label with salary_min between $201 and $999 is nulled,
+          since it is too high to be hourly and too low to be annual;
+          (4) set to null when salary_condition_detail has no '$' sign (e.g.
+          a union local number), mentions "per night", or salary_min exceeds
+          $1M (corrupted or placeholder values).
       - name: salary_period_was_inferred
         description: "True if salary_period was derived or corrected via any of the rules above, rather than taken as-is from the source."
       - name: salary_min
         description: >
           Minimum stated salary, not yet normalized to a common period.
-          Nulled when salary_condition_detail has no '$' sign, states a
-          "per night" rate, or exceeds $10M (see salary_period).
+          Nulled when salary_condition_detail has no '$' sign or the value
+          exceeds $1M.
       - name: salary_max
         description: >
           Maximum stated salary, not yet normalized to a common period.
@@ -176,6 +182,12 @@ models:
           versus fabricating a plausible-looking number.
       - name: hours_max
         description: "Maximum stated hours, in the period given by the corrected hours_per. Same cleaning and validation logic as hours_min."
+      - name: day_hours_basis
+        description: >
+          Hours in a single working day, used only when salary_period is
+          Day. Taken from hours_min/hours_max regardless of hours_per, since
+          Day-period postings label a single day's hours as weekly. Null for
+          other periods.
       - name: weekly_hours_basis
         description: >
           Estimated weekly hours, normalized from hours_per/hours_min/hours_max
@@ -190,9 +202,12 @@ models:
       - name: salary_annual_method
         description: "'direct' or 'estimated' (see salary_annual_min)."
       - name: salary_hourly_min
-        description: "Estimated hourly minimum rate. Direct for Hour postings; derived from salary_annual_min otherwise."
+        description: >
+          Hourly minimum rate. Direct for Hour postings; for Day postings,
+          salary_min divided by day_hours_basis; otherwise derived from
+          salary_annual_min and weekly_hours_basis.
       - name: salary_hourly_max
-        description: "Estimated hourly maximum rate. Same method as salary_hourly_min."
+        description: "Hourly maximum rate. Same method as salary_hourly_min."
       - name: salary_hourly_method
         description: "'direct' or 'estimated' (see salary_hourly_min)."
 
