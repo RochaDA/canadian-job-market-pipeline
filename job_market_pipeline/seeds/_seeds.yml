@@ -1,0 +1,23 @@
+version: 2
+
+seeds:
+  - name: noc_broad_categories
+    description: "NOC 2021 broad occupational categories (first digit of the 5-digit code), from Statistics Canada's NOC 2021 Version 1.0 classification structure."
+    columns:
+      - name: broad_category_code
+        tests:
+          - unique
+          - not_null
+      - name: broad_category_name
+        tests:
+          - not_null
+  - name: teer_categories
+    description: "Teer categories (second digit of the 5-digit code), from Statistics Canada's NOC 2021 Version 1.0 classification structure."
+    columns:
+      - name: teer_category_code
+        tests:
+          - unique
+          - not_null
+      - name: teer_category_name
+        tests:
+          - not_null

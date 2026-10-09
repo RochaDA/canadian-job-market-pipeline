@@ -17,6 +17,15 @@ clean-targets:         # directories to be removed by `dbt clean`
   - "target"
   - "dbt_packages"
 
+seeds:
+  job_market_pipeline:
+    noc_broad_categories:
+      +column_types:
+        broad_category_code: string
+
+    teer_categories:
+      +column_types:
+        teer_category_code: string
 
 # Configuring models
 # Full documentation: https://docs.getdbt.com/docs/configuring-models
@@ -32,3 +41,5 @@ models:
     marts:
       +materialized: table
       +schema: marts
+
+  

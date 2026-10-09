@@ -3,7 +3,7 @@ version: 2
 models:
   - name: dim_date
     description: >
-      One row per calendar day from 2023-01-01 to 2026-12-31, generated
+      One row per calendar day from 2023-01-01 to 2026-08-31, generated
       independently of postings data via dbt_utils.date_spine so every day
       is represented, including days with zero postings. Lets Power BI
       drill down from year to quarter to month to day.
@@ -51,6 +51,18 @@ models:
       - name: noc21_code
         tests:
           - not_null
+      - name: noc21_broad_category_code
+        description: "First digit of the NOC 2021 code."
+      - name: noc21_broad_category
+        description: "Broad occupational category name from StatCan's NOC 2021 structure. 'Not specified' when the posting has no NOC 2021 code."
+      - name: noc21_teer_code
+        description: "Second digit of the NOC 2021 code: the TEER category (0-5), the level of training, education, experience and responsibilities."
+      - name: noc21_teer_category
+        description: "Teer category description from StatCan's NOC 2021 structure. 'Not specified' when the posting has no NOC 2021 code."
+    tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "noc21_code = 'Not specified' or noc21_broad_category != 'Not specified'"
 
   - name: dim_employment
     description: >
