@@ -15,13 +15,13 @@ models:
           NOC code when absent (confirmed: entirely missing for all of
           June, July, August, and September 2024, see job_posting_id_was_generated). Changed
           from bigint to string to accommodate generated IDs.
-        tests:
+        data_tests:
           - unique
           - not_null
 
       - name: job_posting_id_was_generated
         description: "True if job_posting_id was generated (source ID missing), false if sourced directly."
-        tests:
+        data_tests:
           - not_null
       - name: posting_date
         description: >
@@ -29,9 +29,9 @@ models:
           yyyy-MM-dd (June-Sept 2024 use dashes, other months use slashes).
           Null means both formats failed, i.e. a new date format has
           appeared in the source.
-        tests:
+        data_tests:
           - not_null
-    tests:
+    data_tests:
       - dbt_utils.expression_is_true:
           arguments:
             expression: "length(noc16_code) = 4"

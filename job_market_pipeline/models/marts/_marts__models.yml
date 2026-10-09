@@ -10,12 +10,12 @@ models:
     columns:
       - name: date_day
         description: "The calendar date, used as the join key from fct_postings."
-        tests:
+        data_tests:
           - unique
           - not_null
       - name: date_key
         description: "Integer YYYYMMDD surrogate key, for BI tools that prefer an integer join key over a date type."
-        tests:
+        data_tests:
           - unique
           - not_null
 
@@ -29,11 +29,11 @@ models:
     columns:
       - name: geography_id
         description: "Surrogate key, hashed from province_territory + city + economic_region."
-        tests:
+        data_tests:
           - unique
           - not_null
       - name: province_territory
-        tests:
+        data_tests:
           - not_null
 
   - name: dim_occupation
@@ -45,11 +45,11 @@ models:
     columns:
       - name: occupation_id
         description: "Surrogate key, hashed from noc16_code + noc21_code."
-        tests:
+        data_tests:
           - unique
           - not_null
       - name: noc21_code
-        tests:
+        data_tests:
           - not_null
       - name: noc21_broad_category_code
         description: "First digit of the NOC 2021 code."
@@ -59,7 +59,7 @@ models:
         description: "Second digit of the NOC 2021 code: the TEER category (0-5), the level of training, education, experience and responsibilities."
       - name: noc21_teer_category
         description: "Teer category description from StatCan's NOC 2021 structure. 'Not specified' when the posting has no NOC 2021 code."
-    tests:
+    data_tests:
       - dbt_utils.expression_is_true:
           arguments:
             expression: "noc21_code = 'Not specified' or noc21_broad_category != 'Not specified'"
@@ -76,7 +76,7 @@ models:
     columns:
       - name: employment_id
         description: "Surrogate key, hashed from employment_type + employment_term + official_language + posting_detail_level."
-        tests:
+        data_tests:
           - unique
           - not_null
 
@@ -86,23 +86,23 @@ models:
       computed via the same hash expressions used in each dimension's
       surrogate key, so they resolve correctly independent of dimension
       build order.
-    tests:
+    data_tests:
       - dbt_utils.equal_rowcount:
           arguments:
             compare_model: ref('int_postings_enriched')
     columns:
       - name: job_posting_id
         description: "Grain of this table: one row per posting."
-        tests:
+        data_tests:
           - unique
           - not_null
       - name: job_posting_id_was_generated
         description: "True when job_posting_id was generated because the source ID was missing (June-September 2024)."
-        tests:
+        data_tests:
           - not_null
       - name: geography_id
         description: "Foreign key to dim_geography."
-        tests:
+        data_tests:
           - not_null
           - relationships:
               arguments:
@@ -110,7 +110,7 @@ models:
                 field: geography_id
       - name: occupation_id
         description: "Foreign key to dim_occupation."
-        tests:
+        data_tests:
           - not_null
           - relationships:
               arguments:
@@ -118,7 +118,7 @@ models:
                 field: occupation_id
       - name: employment_id
         description: "Foreign key to dim_employment."
-        tests:
+        data_tests:
           - not_null
           - relationships:
               arguments:
@@ -128,7 +128,7 @@ models:
         description: >
           Foreign key to dim_date.date_day. Named for its business meaning in
           this table rather than mirroring the dimension's key name exactly.
-        tests:
+        data_tests:
           - not_null
           - relationships:
               arguments:

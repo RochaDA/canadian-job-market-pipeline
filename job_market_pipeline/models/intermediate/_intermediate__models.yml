@@ -17,7 +17,7 @@ models:
 
       - name: job_posting_id_was_generated
         description: "True when job_posting_id was generated because the source ID was missing."
-        tests:
+        data_tests:
           - not_null
 
       - name: job_title
@@ -25,7 +25,7 @@ models:
           Job title as posted. When the cleaned title is missing, falls back
           to original_job_title, and then to 'Not specified' if both are
           empty. Never null.
-        tests:
+        data_tests:
           - not_null
 
       - name: posting_detail_level
@@ -35,7 +35,7 @@ models:
           (education_los, experience_level, naics, employment_term_weekend,
           employment_term_telework, hours_per) are null together in ~57.6%
           of postings, suggesting two distinct posting submission paths.
-        tests:
+        data_tests:
           - accepted_values:
               arguments:
                 values: ['detailed', 'minimal']
@@ -48,7 +48,7 @@ models:
           'Various Locations' to preserve that distinction. The remaining ~12
           have no clear explanation and are labeled 'Not specified', consistent
           with other categorical nulls in this model.
-        tests:
+        data_tests:
           - not_null
           - accepted_values:
               arguments:
@@ -59,7 +59,7 @@ models:
 
       - name: posting_date
         description: "Date the posting first appeared on Job Bank."
-        tests:
+        data_tests:
           - not_null
 
       # Columns below are carried through with light documentation
@@ -211,7 +211,7 @@ models:
       - name: salary_hourly_method
         description: "'direct' or 'estimated' (see salary_hourly_min)."
 
-    tests:  
+    data_tests:  
       - dbt_utils.expression_is_true:
           arguments:
             expression: "noc16_code = 'Not specified' or length(noc16_code) = 4"
