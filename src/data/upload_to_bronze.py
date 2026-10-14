@@ -48,6 +48,27 @@ def _extract_warehouse_id(http_path: str) -> str:
         raise ValueError(f"Could not extract a warehouse ID from http_path: {http_path!r}")
     return match.group(1)
 
+def _ensure_warehouse_running(client, warehouse_id, timeout_seconds=300):
+    """Starts the warehouse if stopped, and waits until it's actually RUNNING
+    before issuing any statements, a stopped warehouse rejects requests
+    immediately with a generic error rather than queuing them."""
+    warehouse = client.warehouses.get(warehouse_id)
+    if warehouse.state.value == "RUNNING":
+        return
+
+    logger.info("Warehouse is %s, starting it...", warehouse.state.value)
+    client.warehouses.start(warehouse_id)
+
+    waited = 0
+    while waited < timeout_seconds:
+        time.sleep(5)
+        waited += 5
+        warehouse = client.warehouses.get(warehouse_id)
+        if warehouse.state.value == "RUNNING":
+            logger.info("Warehouse is now running (waited %ds).", waited)
+            return
+
+    raise RuntimeError(f"Warehouse did not reach RUNNING within {timeout_seconds}s")
 
 def _run_copy_into(client: WorkspaceClient, warehouse_id: str, volume_file_path: str) -> None:
     """Runs COPY INTO for one file, polling until the statement finishes.
@@ -97,6 +118,7 @@ def run(client: WorkspaceClient = None) -> None:
         token=config.DATABRICKS_TOKEN,
     )
     warehouse_id = _extract_warehouse_id(config.DATABRICKS_HTTP_PATH)
+    _ensure_warehouse_running(client, warehouse_id)
 
     pending = load_pending_bronze_uploads(config.MANIFEST_PATH)
     logger.info("%d month(s) pending upload to bronze.", len(pending))
