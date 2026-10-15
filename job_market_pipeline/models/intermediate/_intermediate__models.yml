@@ -27,6 +27,21 @@ models:
           empty. Never null.
         data_tests:
           - not_null
+      
+      - name: is_data_ai_ml_role
+        description: >
+          Flag used to identify job posting related the data analyst, data scientist,
+          ML, or AI. NOC21 codes were used to try to identify this kind of positions.
+          Filled with boolean values.
+        data_tests:
+          - not_null
+
+      - name: seniority_level
+        description: >
+          Flag used to identify the job posting seniority (Junior, Senior, Manager, Intermediate, or
+          Not Identified). Regex is used in an attempt to identify it.
+        data_tests:
+          - not_null  
 
       - name: posting_detail_level
         description: >

@@ -8,7 +8,7 @@ models:
       is represented, including days with zero postings. Lets Power BI
       drill down from year to quarter to month to day.
     columns:
-      - name: date_day
+      - name: posting_date
         description: "The calendar date, used as the join key from fct_postings."
         data_tests:
           - unique
@@ -133,7 +133,13 @@ models:
           - relationships:
               arguments:
                 to: ref('dim_date')
-                field: date_day
+                field: posting_date
+      - name: is_data_ai_ml_role
+        data_tests:
+          - not_null
+      - name: seniority_level
+        data_tests:
+          - not_null
       - name: job_title
         description: "Degenerate dimension: job title as posted, falling back to the original title or 'Not specified'."
       - name: salary_condition_detail

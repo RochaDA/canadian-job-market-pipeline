@@ -19,6 +19,8 @@ select
     */
     job_title,
     salary_condition_detail,
+    seniority_level,
+    is_data_ai_ml_role,
 
     -- Measures
     vacancy_count,

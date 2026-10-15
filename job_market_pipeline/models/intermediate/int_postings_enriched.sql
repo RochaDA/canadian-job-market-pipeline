@@ -95,6 +95,18 @@ enriched as (
         case when noc16_code_name is null then 'Not specified' else noc16_code_name end as noc16_code_name,
         case when noc21_code is null then 'Not specified' else noc21_code end as noc21_code,
         case when noc21_code_name is null then 'Not specified' else noc21_code_name end as noc21_code_name,
+        case
+            when noc21_code in ('21211', '21223', '21210') then true
+            when lower(job_title) rlike '(data scientist|machine learning|\\bml\\b|\\bai\\b|data analyst)' then true
+            else false
+        end as is_data_ai_ml_role,
+        case
+            when lower(job_title) rlike '(junior|jr\\.?\\b|entry.level)' then 'Junior'
+            when lower(job_title) rlike '(senior|sr\\.?\\b|lead|principal|staff)' then 'Senior'
+            when lower(job_title) rlike '(manager|director|head of|chief)' then 'Manager'
+            when lower(job_title) rlike '(intermediate|mid.level)' then 'Intermediate'
+            else 'Not specified'
+        end as seniority_level,
         posting_date,
         vacancy_count,
         case

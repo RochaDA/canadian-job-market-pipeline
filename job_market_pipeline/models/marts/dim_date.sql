@@ -11,14 +11,14 @@ with date_spine as (
 time_table as (
 
     select
-        cast(date_day as date)                                  as date_day,
+        cast(date_day as date)                                  as posting_date,
         cast(date_format(date_day, 'yyyyMMdd') as int)           as date_key,
 
         year(date_day)                                            as year,
-        quarter(date_day)                                         as quarter,
-        concat('Q', quarter(date_day))                            as quarter_name,
-        month(date_day)                                           as month,
-        date_format(date_day, 'MMMM')                             as month_name,
+        quarter(date_day)                                         as quarter_number,
+        concat('Q', quarter(date_day))                            as quarter,
+        month(date_day)                                           as month_number,
+        date_format(date_day, 'MMMM')                             as month,
         weekofyear(date_day)                                      as week_of_year,
         date_format(date_day, 'EEEE')                             as day_name,
 
